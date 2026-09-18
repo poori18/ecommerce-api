@@ -68,6 +68,7 @@ build/
 .claude/settings.local.json
 CLAUDE.local.md
 .mcp.local.json
+.claude/reports/
 
 ### OS ###
 .DS_Store
