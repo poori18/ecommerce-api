@@ -191,6 +191,26 @@ class OrderServiceTest {
     }
 
     @Test
+    void should_throwBusinessRuleException_when_cancellingAlreadyDeliveredOrder() {
+        // Arrange
+        Order order = Order.builder().status(OrderStatus.DELIVERED).items(new ArrayList<>()).build();
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        // Act & Assert
+        assertThrows(BusinessRuleException.class, () -> orderService.updateOrderStatus(1L, OrderStatus.CANCELLED));
+    }
+
+    @Test
+    void should_throwBusinessRuleException_when_cancellingAlreadyCancelledOrder() {
+        // Arrange
+        Order order = Order.builder().status(OrderStatus.CANCELLED).items(new ArrayList<>()).build();
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        // Act & Assert
+        assertThrows(BusinessRuleException.class, () -> orderService.updateOrderStatus(1L, OrderStatus.CANCELLED));
+    }
+
+    @Test
     void should_throwResourceNotFoundException_when_orderDoesNotExist() {
         // Arrange
         when(orderRepository.findById(99L)).thenReturn(Optional.empty());
