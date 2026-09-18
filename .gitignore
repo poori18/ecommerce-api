@@ -1,0 +1,75 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### Maven (extra artifacts) ###
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.flattened-pom.xml
+
+### Spring Boot ###
+*.log
+logs/
+spring.log
+*.pid
+
+### Local config / secrets (MySQL credentials etc.) ###
+application-local.properties
+application-local.yml
+application-local.yaml
+application-secrets.properties
+.env
+.env.*
+!.env.example
+
+### MySQL / embedded DB artifacts ###
+*.mv.db
+*.trace.db
+*.sql.bak
+*.dump
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Claude Code ###
+.claude/settings.local.json
+CLAUDE.local.md
+.mcp.local.json
+
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
