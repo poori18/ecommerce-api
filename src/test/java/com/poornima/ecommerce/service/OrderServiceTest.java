@@ -1,5 +1,9 @@
 package com.poornima.ecommerce.service;
 
+import com.poornima.ecommerce.dto.OrderItemRequest;
+import com.poornima.ecommerce.dto.OrderRequest;
+import com.poornima.ecommerce.dto.OrderResponse;
+import com.poornima.ecommerce.entity.Customer;
 import com.poornima.ecommerce.entity.Order;
 import com.poornima.ecommerce.entity.OrderItem;
 import com.poornima.ecommerce.entity.OrderStatus;
@@ -9,6 +13,7 @@ import com.poornima.ecommerce.entity.PaymentStatus;
 import com.poornima.ecommerce.entity.Product;
 import com.poornima.ecommerce.exception.BusinessRuleException;
 import com.poornima.ecommerce.exception.ResourceNotFoundException;
+import com.poornima.ecommerce.repository.CustomerRepository;
 import com.poornima.ecommerce.repository.OrderRepository;
 import com.poornima.ecommerce.repository.ProductRepository;
 import org.junit.jupiter.api.Test;
@@ -36,24 +41,28 @@ class OrderServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private CustomerRepository customerRepository;
+
     @InjectMocks
     private OrderService orderService;
 
     @Test
     void should_reduceProductStock_when_orderIsPlaced() {
         // Arrange
-        Product product = Product.builder().id(1L).name("Mouse").stockQuantity(10).build();
-        OrderItem item = OrderItem.builder()
-                .product(Product.builder().id(1L).build())
-                .quantity(3)
-                .unitPrice(BigDecimal.TEN)
+        Customer customer = Customer.builder().id(1L).build();
+        Product product = Product.builder().id(10L).name("Mouse").price(BigDecimal.TEN).stockQuantity(10).build();
+        OrderRequest request = OrderRequest.builder()
+                .customerId(1L)
+                .shippingAddress("123 Street")
+                .items(List.of(OrderItemRequest.builder().productId(10L).quantity(3).build()))
                 .build();
-        Order order = Order.builder().items(new ArrayList<>(List.of(item))).build();
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        orderService.placeOrder(order);
+        orderService.placeOrder(request);
 
         // Assert
         assertThat(product.getStockQuantity()).isEqualTo(7);
@@ -62,22 +71,38 @@ class OrderServiceTest {
     @Test
     void should_throwBusinessRuleException_when_placingOrderExceedsAvailableStock() {
         // Arrange
-        Product product = Product.builder().id(1L).name("Mouse").stockQuantity(2).build();
-        OrderItem item = OrderItem.builder()
-                .product(Product.builder().id(1L).build())
-                .quantity(5)
-                .unitPrice(BigDecimal.TEN)
+        Customer customer = Customer.builder().id(1L).build();
+        Product product = Product.builder().id(10L).name("Mouse").price(BigDecimal.TEN).stockQuantity(2).build();
+        OrderRequest request = OrderRequest.builder()
+                .customerId(1L)
+                .shippingAddress("123 Street")
+                .items(List.of(OrderItemRequest.builder().productId(10L).quantity(5).build()))
                 .build();
-        Order order = Order.builder().items(new ArrayList<>(List.of(item))).build();
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
 
         // Act & Assert
-        assertThrows(BusinessRuleException.class, () -> orderService.placeOrder(order));
+        assertThrows(BusinessRuleException.class, () -> orderService.placeOrder(request));
+    }
+
+    @Test
+    void should_throwResourceNotFoundException_when_placingOrderForUnknownCustomer() {
+        // Arrange
+        OrderRequest request = OrderRequest.builder()
+                .customerId(99L)
+                .shippingAddress("123 Street")
+                .items(List.of(OrderItemRequest.builder().productId(10L).quantity(1).build()))
+                .build();
+        when(customerRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () -> orderService.placeOrder(request));
     }
 
     @Test
     void should_restoreStockAndMarkPaymentRefunded_when_cancellingOrderWithCompletedPayment() {
         // Arrange
+        Customer customer = Customer.builder().id(1L).build();
         Product product = Product.builder().id(1L).stockQuantity(5).build();
         OrderItem item = OrderItem.builder().product(product).quantity(2).build();
         Payment payment = Payment.builder()
@@ -87,6 +112,7 @@ class OrderServiceTest {
                 .build();
         Order order = Order.builder()
                 .status(OrderStatus.CONFIRMED)
+                .customer(customer)
                 .items(new ArrayList<>(List.of(item)))
                 .payment(payment)
                 .build();
@@ -94,7 +120,7 @@ class OrderServiceTest {
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        Order result = orderService.cancelOrder(10L);
+        OrderResponse result = orderService.updateOrderStatus(10L, OrderStatus.CANCELLED);
 
         // Assert
         assertThat(product.getStockQuantity()).isEqualTo(7);
@@ -105,6 +131,7 @@ class OrderServiceTest {
     @Test
     void should_leavePaymentStatusUnchanged_when_cancellingOrderWithoutCompletedPayment() {
         // Arrange
+        Customer customer = Customer.builder().id(1L).build();
         Product product = Product.builder().id(1L).stockQuantity(5).build();
         OrderItem item = OrderItem.builder().product(product).quantity(2).build();
         Payment payment = Payment.builder()
@@ -114,6 +141,7 @@ class OrderServiceTest {
                 .build();
         Order order = Order.builder()
                 .status(OrderStatus.PENDING)
+                .customer(customer)
                 .items(new ArrayList<>(List.of(item)))
                 .payment(payment)
                 .build();
@@ -121,7 +149,7 @@ class OrderServiceTest {
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        orderService.cancelOrder(10L);
+        orderService.updateOrderStatus(10L, OrderStatus.CANCELLED);
 
         // Assert
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.PENDING);
@@ -130,12 +158,13 @@ class OrderServiceTest {
     @Test
     void should_allowTransition_when_movingFromPendingToConfirmed() {
         // Arrange
-        Order order = Order.builder().status(OrderStatus.PENDING).items(new ArrayList<>()).build();
+        Customer customer = Customer.builder().id(1L).build();
+        Order order = Order.builder().status(OrderStatus.PENDING).customer(customer).items(new ArrayList<>()).build();
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        Order result = orderService.updateOrderStatus(1L, OrderStatus.CONFIRMED);
+        OrderResponse result = orderService.updateOrderStatus(1L, OrderStatus.CONFIRMED);
 
         // Assert
         assertThat(result.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
