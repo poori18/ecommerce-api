@@ -7,7 +7,7 @@
 - MySQL
 
 ## Package Structure
-Base package: `com.example.ecommerce`
+Base package: `com.poornima.ecommerce`
 
 Sub-packages:
 - `controller`
