@@ -1,0 +1,22 @@
+.git
+.gitattributes
+.gitignore
+.github
+.vscode
+.idea
+.claude
+.playwright-mcp
+target
+db
+HELP.md
+*.md
+Dockerfile
+.dockerignore
+
+# Local dev secrets — never bake these into the image
+src/main/resources/application-local.properties
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-secrets.properties
+.env
+.env.*
